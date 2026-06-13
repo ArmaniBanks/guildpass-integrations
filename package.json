@@ -1,8 +1,13 @@
 {
-  "name": "guildpass-app",
+  "name": "guildpass-integrations",
   "private": true,
   "version": "0.1.0",
-  "description": "GuildPass frontend MVP: Next.js App Router, TypeScript, Tailwind, shadcn-style UI, wagmi/viem, React Query.",
+  "description": "Main frontend MVP for the GuildPass ecosystem: Next.js App Router, TypeScript, Tailwind, shadcn/ui, wagmi/viem, and React Query.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Adamantine-Guild/guildpass-integrations.git"
+  },
+  "author": "GuildPass Team",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
