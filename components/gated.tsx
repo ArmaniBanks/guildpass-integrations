@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query'
 import { getApi, type MembershipTier, type Role } from '@/lib/api'
 import Link from 'next/link'
 import { buttonVariants } from './ui/button'
+import { LoadingState, ErrorState, safeErrorMessage } from './ui/api-states'
 
 export function Gated({
   children,
@@ -16,10 +17,11 @@ export function Gated({
   roles?: Role[]
 }) {
   const { address } = useAccount()
-  const { data: session, isLoading } = useQuery({
+  const { data: session, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['session', address],
     queryFn: () => getApi(address).getSession(),
-    enabled: !!address
+    enabled: !!address,
+    retry: 1
   })
 
   if (!address) {
@@ -27,7 +29,17 @@ export function Gated({
   }
 
   if (isLoading) {
-    return <div className="text-sm text-muted-foreground">Checking access…</div>
+    return <LoadingState message="Checking access…" />
+  }
+
+  if (isError) {
+    return (
+      <ErrorState
+        title="Could not verify access"
+        message={safeErrorMessage(error)}
+        onRetry={() => refetch()}
+      />
+    )
   }
 
   const hasRole = roles ? roles.some(r => session?.roles?.includes(r)) : true

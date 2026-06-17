@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import Link from 'next/link'
 import { buttonVariants } from '@/components/ui/button'
+import { LoadingState, ErrorState, safeErrorMessage } from '@/components/ui/api-states'
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -20,10 +21,11 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 export default function DashboardPage() {
   const { address, isConnected } = useAccount()
-  const { data: session, isLoading } = useQuery<Session>({
+  const { data: session, isLoading, isError, error, refetch } = useQuery<Session>({
     queryKey: ["session", address],
     queryFn: () => getApi(address).getSession(),
-    enabled: !!address
+    enabled: !!address,
+    retry: 1
   })
 
   const membership: Membership | undefined = session?.membership
@@ -49,7 +51,13 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Section title="Community">
           {isLoading ? (
-            <div className="text-sm text-muted-foreground">Loading…</div>
+            <LoadingState />
+          ) : isError ? (
+            <ErrorState
+              title="Failed to load session"
+              message={safeErrorMessage(error)}
+              onRetry={() => refetch()}
+            />
           ) : (
             <div className="space-y-2">
               <div className="text-lg font-medium">{session?.community?.name ?? "Unknown"}</div>

@@ -35,13 +35,36 @@ export class AuthError extends Error {
   }
 }
 
+export class ApiError extends Error {
+  constructor(
+    public readonly status: number,
+    statusText: string,
+    serverMessage?: string
+  ) {
+    super(serverMessage ? `${serverMessage} (${status})` : `Request failed (${status} ${statusText})`)
+    this.name = 'ApiError'
+  }
+}
+
 async function getJson<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     ...init,
     headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) },
   })
-  if (res.status === 401) throw new AuthError()
-  if (!res.ok) throw new Error(`Request failed: ${res.status}`)
+  if (res.status === 401) {
+    throw new AuthError()
+  }
+  if (!res.ok) {
+    let serverMessage: string | undefined
+    try {
+      const body = await res.json()
+      const raw = body?.message ?? body?.error
+      if (typeof raw === 'string' && raw.length <= 120 && !raw.includes('<')) {
+        serverMessage = raw
+      }
+    } catch {}
+    throw new ApiError(res.status, res.statusText, serverMessage)
+  }
   return res.json() as Promise<T>
 }
 

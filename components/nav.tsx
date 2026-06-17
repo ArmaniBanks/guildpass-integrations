@@ -18,6 +18,7 @@ export function Nav() {
     queryFn: () => getApi(address, authSession?.token).getSession(),
     staleTime: 10_000,
     enabled: !!address,
+    retry: 1
   })
 
   const isAdmin = !!session?.roles?.includes('admin')

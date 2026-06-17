@@ -1,12 +1,4 @@
 'use client'
-/**
- * app/admin/policies/page.tsx
- *
- * SIWE changes:
- *  - updatePolicy mutation sends the SIWE token via getApi(address, token).
- *  - AuthError (HTTP 401) triggers the <SessionExpiredBanner> re-auth flow.
- *  - Read-only listPolicies query remains unauthenticated.
- */
 
 import { useAccount } from 'wagmi'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -17,8 +9,7 @@ import { AdminGuard } from '@/components/admin-guard'
 import { useSiweAuth } from '@/lib/wallet/providers'
 import { AuthError } from '@/lib/api/live'
 import { useState } from 'react'
-
-// ── SessionExpiredBanner ──────────────────────────────────────────────────────
+import { LoadingState, ErrorState, EmptyState, safeErrorMessage } from '@/components/ui/api-states'
 
 function SessionExpiredBanner() {
   const { signIn, isSigningIn } = useSiweAuth()
@@ -43,27 +34,31 @@ function SessionExpiredBanner() {
   )
 }
 
-// ── PoliciesPage ──────────────────────────────────────────────────────────────
-
 export default function PoliciesPage() {
   const { address } = useAccount()
   const { authSession } = useSiweAuth()
   const qc = useQueryClient()
   const [sessionExpired, setSessionExpired] = useState(false)
 
-  // Read-only — no token needed
-  const { data: policies } = useQuery<AccessPolicy[]>({
+  const { data: policies, isLoading, isError, error, refetch } = useQuery<AccessPolicy[]>({
     queryKey: ['policies'],
     queryFn: () => getApi(address).listPolicies(),
+    retry: 1
   })
 
-  // Mutation — passes SIWE token
-  const { mutate, isPending } = useMutation({
+  const {
+    mutate,
+    isPending,
+    isError: mutateError,
+    error: mutateErrorValue,
+    reset: resetMutation
+  } = useMutation({
     mutationFn: (p: AccessPolicy) =>
       getApi(address, authSession?.token).updatePolicy(p),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['policies'] })
       setSessionExpired(false)
+      resetMutation()
     },
     onError: (err: unknown) => {
       if (err instanceof AuthError) {
@@ -82,33 +77,48 @@ export default function PoliciesPage() {
         <Card>
           <CardHeader><CardTitle>Resources</CardTitle></CardHeader>
           <CardContent className="space-y-2">
-            {policies?.map((p) => (
-              <div key={p.resourceId} className="flex items-center gap-2">
-                <div className="w-40 text-sm">{p.resourceId}</div>
-                <select
-                  id={`policy-tier-${p.resourceId}`}
-                  className="border rounded-md h-9 px-2 text-sm"
-                  value={p.minTier ?? 'free'}
-                  onChange={(e) => mutate({ ...p, minTier: e.target.value as AccessPolicy['minTier'] })}
-                  disabled={isPending}
-                >
-                  <option value="free">free</option>
-                  <option value="standard">standard</option>
-                  <option value="pro">pro</option>
-                </select>
-                <Button
-                  id={`policy-save-${p.resourceId}`}
-                  variant="outline"
-                  size="sm"
-                  onClick={() => mutate({ ...p })}
-                  disabled={isPending}
-                >
-                  Save
-                </Button>
-              </div>
-            ))}
-            {!policies?.length && (
-              <div className="text-sm text-muted-foreground">No resources configured.</div>
+            {isLoading ? (
+              <LoadingState message="Loading policies…" />
+            ) : isError ? (
+              <ErrorState
+                title="Failed to load policies"
+                message={safeErrorMessage(error)}
+                onRetry={() => refetch()}
+              />
+            ) : !policies?.length ? (
+              <EmptyState message="No resources configured." />
+            ) : (
+              policies.map((p) => (
+                <div key={p.resourceId} className="flex items-center gap-2">
+                  <div className="w-40 text-sm">{p.resourceId}</div>
+                  <select
+                    id={`policy-tier-${p.resourceId}`}
+                    className="border rounded-md h-9 px-2 text-sm"
+                    value={p.minTier ?? 'free'}
+                    onChange={(e) => mutate({ ...p, minTier: e.target.value as AccessPolicy['minTier'] })}
+                    disabled={isPending}
+                  >
+                    <option value="free">free</option>
+                    <option value="standard">standard</option>
+                    <option value="pro">pro</option>
+                  </select>
+                  <Button
+                    id={`policy-save-${p.resourceId}`}
+                    variant="outline"
+                    size="sm"
+                    onClick={() => mutate({ ...p })}
+                    disabled={isPending}
+                  >
+                    {isPending ? 'Saving…' : 'Save'}
+                  </Button>
+                </div>
+              ))
+            )}
+            {mutateError && (
+              <ErrorState
+                title="Failed to save policy"
+                message={safeErrorMessage(mutateErrorValue)}
+              />
             )}
           </CardContent>
         </Card>
