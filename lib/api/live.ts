@@ -9,13 +9,15 @@ import {
   Resource,
   Role,
   Session,
- SiweAuthSession,
+  SiweAuthSession,
   BackendSession,
   BackendMember,
   BackendResource,
   BackendPolicy,
 } from './types'
 import { ApiError } from './errors'
+
+import { PolicyValidationError, validatePolicy } from '@/lib/validation/policy'
 
 function getCoreApiUrl(): string {
   return process.env.NEXT_PUBLIC_CORE_API_URL || 'http://localhost:4000'
@@ -234,7 +236,7 @@ export class LiveAccessApi implements AccessApi {
   constructor(
     private readonly address?: string,
     private readonly token?: string,
-  ) {}
+  ) { }
 
   private authHeaders(): HeadersInit {
     return this.token ? { Authorization: `Bearer ${this.token}` } : {}
@@ -291,17 +293,23 @@ export class LiveAccessApi implements AccessApi {
   }
 
   async updatePolicy(policy: AccessPolicy): Promise<void> {
-    await getJson<void>(`/v1/policies/${encodeURIComponent(policy.resourceId)}`, {
+    const result = validatePolicy(policy)
+
+    if (!result.valid) {
+      throw new PolicyValidationError(result.errors)
+    }
+
+    await getJson(`/v1/policies/${encodeURIComponent(result.value.resourceId)}`, {
       method: 'PUT',
       headers: this.authHeaders(),
       body: JSON.stringify({
-        resource_id: policy.resourceId,
-        min_tier: policy.minTier,
-        roles: policy.roles,
+        resource_id: result.value.resourceId,
+        min_tier: result.value.minTier,
+        roles: result.value.roles,
       }),
     })
   }
-
+  
   async getNonce(address: string): Promise<string> {
     const data = await getJson<{ nonce: string }>('/v1/auth/siwe/nonce', {
       method: 'POST',

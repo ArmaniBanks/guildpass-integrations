@@ -15,7 +15,7 @@
  * convenience so you can simulate both unauthenticated and admin states:
  *   NEXT_PUBLIC_MOCK_ADMIN_ADDRESS=0xYourAddress
  */
-
+import { PolicyValidationError, validatePolicy } from '@/lib/validation/policy'
 import {
   AccessApi,
   AccessPolicy,
@@ -80,7 +80,7 @@ function randomHex(): string {
 }
 
 export class MockAccessApi implements AccessApi {
-  constructor(private readonly address?: string) {}
+  constructor(private readonly address?: string) { }
 
   // ── Read-only ──────────────────────────────────────────────────────────────
 
@@ -134,9 +134,15 @@ export class MockAccessApi implements AccessApi {
   }
 
   async updatePolicy(policy: AccessPolicy): Promise<void> {
-    const idx = policies.findIndex((p) => p.resourceId === policy.resourceId)
-    if (idx >= 0) policies[idx] = policy
-    else policies.push(policy)
+    const result = validatePolicy(policy)
+
+    if (!result.valid) {
+      throw new PolicyValidationError(result.errors)
+    }
+
+    const idx = policies.findIndex((p) => p.resourceId === result.value.resourceId)
+    if (idx >= 0) policies[idx] = result.value
+    else policies.push(result.value)
   }
 
   // ── SIWE mock endpoints ────────────────────────────────────────────────────
