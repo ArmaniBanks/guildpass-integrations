@@ -51,7 +51,18 @@ export function clearAuthSession(): void {
   if (typeof window === 'undefined') return
   try {
     window.sessionStorage.removeItem(SESSION_KEY)
+    try {
+      // Notify listeners (SiweAuthProvider) that the session was cleared/invalidated.
+      window.dispatchEvent(new CustomEvent('siwe:invalidated'))
+    } catch {
+      // Ignore environments that disallow CustomEvent
+    }
   } catch {
     // Silently ignore
   }
+}
+
+/** Convenience to clear session and notify listeners explicitly. */
+export function invalidateAuthSession(): void {
+  clearAuthSession()
 }

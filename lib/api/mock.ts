@@ -86,6 +86,15 @@ export class MockAccessApi implements AccessApi {
   // ── Read-only ──────────────────────────────────────────────────────────────
 
   async getSession(): Promise<Session> {
+    const MOCK_SESSION_STATE = process.env.NEXT_PUBLIC_MOCK_SESSION_STATE || 'valid'
+    if (MOCK_SESSION_STATE === 'cleared') {
+      return {
+        // No authenticated session
+        roles: [],
+        community,
+      }
+    }
+
     const data = ensureAddress(this.address)
     return {
       address: this.address,
@@ -162,7 +171,11 @@ export class MockAccessApi implements AccessApi {
    * deliberately fake ("mock-jwt-…") so it cannot be confused with a real token.
    */
   async siweVerify(_message: string, _signature: string): Promise<SiweAuthSession> {
-    const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString()
+    const MOCK_SESSION_STATE = process.env.NEXT_PUBLIC_MOCK_SESSION_STATE || 'valid'
+    const expiresAt =
+      MOCK_SESSION_STATE === 'expired'
+        ? new Date(Date.now() - 5 * 60 * 1000).toISOString()
+        : new Date(Date.now() + 60 * 60 * 1000).toISOString()
     return {
       isAuthenticated: true,
       token: `mock-jwt-${randomHex()}`,

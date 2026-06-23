@@ -30,6 +30,7 @@ import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/reac
 import { getApi } from '@/lib/api'
 import { SiweAuthSession } from '@/lib/api/types'
 import { clearAuthSession, loadAuthSession, storeAuthSession } from '@/lib/session'
+import { isApiError } from '@/lib/api/errors'
 import { accessKeys } from '@/lib/query'
 
 // ── Wagmi config (unchanged) ──────────────────────────────────────────────────
@@ -104,6 +105,29 @@ function SiweAuthProvider({ children }: PropsWithChildren) {
       queryClient.removeQueries({ queryKey: accessKeys.all })
     }
   }, [address, authSession, queryClient])
+
+  // Respond to external invalidation events (e.g. 401 detected globally)
+  useEffect(() => {
+    const handler = () => {
+      setAuthSession(null)
+      setError('Session expired. Please sign in again.')
+      try {
+        clearAuthSession()
+      } catch {
+        // ignore
+      }
+      try {
+        disconnect()
+      } catch {
+        // ignore
+      }
+      queryClient.removeQueries({ queryKey: ['session'] })
+      queryClient.removeQueries({ queryKey: accessKeys.all })
+    }
+
+    window.addEventListener('siwe:invalidated', handler)
+    return () => window.removeEventListener('siwe:invalidated', handler)
+  }, [disconnect, queryClient])
 
   const signIn = useCallback(async () => {
     if (!address) {
@@ -189,7 +213,39 @@ function SiweAuthProvider({ children }: PropsWithChildren) {
 // ── Root providers (public export, used in app/layout.tsx) ───────────────────
 
 export function RootProviders({ children }: PropsWithChildren) {
-  const [queryClient] = useState(() => new QueryClient())
+  const [queryClient] = useState(() =>
+    new QueryClient({
+      defaultOptions: {
+        queries: {
+          onError: (err: unknown) => {
+            try {
+              if (isApiError(err) && err.code === 'unauthorized') {
+                // Clear persisted session and cached queries on 401 so UI resets
+                clearAuthSession()
+                // best-effort: remove session-related cache
+                // Note: QueryClient instance is available as `queryClient` here,
+                // but removing queries from within the constructor callback is
+                // not supported — we'll remove them after creation below.
+              }
+            } catch {
+              // ignore
+            }
+          },
+        },
+      },
+    }),
+  )
+
+  // After creating the client, ensure session-related queries are cleared
+  // when we detect an unauthorized error via the onError hook above.
+  useEffect(() => {
+    const handler = () => {
+      queryClient.removeQueries({ queryKey: ['session'] })
+      queryClient.removeQueries({ queryKey: accessKeys.all })
+    }
+    window.addEventListener('siwe:invalidated', handler)
+    return () => window.removeEventListener('siwe:invalidated', handler)
+  }, [queryClient])
   return (
     <WagmiProvider config={wagmiConfig}>
       <QueryClientProvider client={queryClient}>
