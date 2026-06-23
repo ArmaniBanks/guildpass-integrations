@@ -92,12 +92,16 @@ Admin actions are protected by [Sign-In with Ethereum (EIP-4361)](https://eips.e
 
 ## Environment Variables
 
+All configuration is read and validated at startup by [`lib/config.ts`](./lib/config.ts).  
+Invalid values produce a clear `ConfigError` in development so broken configuration is caught
+immediately rather than at runtime.
+
 | Variable | Required | Description |
 | ---- | ------- | ----------- |
 | `NEXT_PUBLIC_MOCK_MODE` | No | Set `true` for in-memory mock API; SIWE fully simulated |
 | `NEXT_PUBLIC_DEMO_MODE` | No | Alias for `NEXT_PUBLIC_MOCK_MODE` |
-| `NEXT_PUBLIC_CORE_API_URL` | Live mode only | Base URL of the `guildpass-core` access-api |
-| `NEXT_PUBLIC_SIWE_DOMAIN` | No | Domain field in the EIP-4361 message (defaults to `window.location.host`) |
+| `NEXT_PUBLIC_CORE_API_URL` | Live mode only (validated) | Base URL of the `guildpass-core` access-api — must be a valid absolute URL in live mode |
+| `NEXT_PUBLIC_SIWE_DOMAIN` | No | Domain field in the EIP-4361 message (defaults to `localhost:3000`) |
 | `NEXT_PUBLIC_SIWE_STATEMENT` | No | Human-readable statement shown in the signed message |
 
 See [`.env.example`](./.env.example) for a ready-to-copy template.

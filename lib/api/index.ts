@@ -1,3 +1,4 @@
+import { config } from '@/lib/config'
 import { LiveAccessApi } from './live'
 import { MockAccessApi } from './mock'
 import { AccessApi } from './types'
@@ -10,10 +11,7 @@ import { AccessApi } from './types'
  *                 Ignored by the mock client (mutations succeed unconditionally in mock mode).
  */
 export function getApi(address?: string, token?: string): AccessApi {
-  const mock =
-    process.env.NEXT_PUBLIC_MOCK_MODE === 'true' ||
-    process.env.NEXT_PUBLIC_DEMO_MODE === 'true'
-  if (mock) return new MockAccessApi(address)
+  if (config.apiMode === 'mock') return new MockAccessApi(address)
   return new LiveAccessApi(address, token)
 }
 

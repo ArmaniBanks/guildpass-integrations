@@ -14,16 +14,14 @@ import {
   BackendMember,
   BackendResource,
   BackendPolicy,
+  WebhookEventLog,
 } from './types'
 import { ApiError } from './errors'
 
-import { PolicyValidationError, validatePolicy } from '../validation/policy'
+import { PolicyValidationError, validatePolicy } from '@/lib/validation/policy'
+import { config } from '@/lib/config'
 
-function getCoreApiUrl(): string {
-  return process.env.NEXT_PUBLIC_CORE_API_URL || 'http://localhost:4000'
-}
-
-const BASE = getCoreApiUrl()
+const BASE = config.apiUrl
 
 function createApiError(status: number, body?: ApiErrorBody): ApiError {
   const details =
@@ -230,6 +228,22 @@ function mapSession(raw: any): Session {
   }
 }
 
+function mapWebhookEvent(raw: any): WebhookEventLog {
+  return {
+    id: raw.id ?? '',
+    eventType: raw.eventType ?? raw.event_type ?? 'membership.created',
+    status: raw.status ?? 'pending',
+    timestamp: raw.timestamp ?? raw.created_at ?? new Date().toISOString(),
+    affectedIdentifier: raw.affectedIdentifier ?? raw.affected_identifier ?? '',
+    payloadSummary: {
+      network: raw.payloadSummary?.network ?? raw.payload_summary?.network,
+      txHash: raw.payloadSummary?.txHash ?? raw.payload_summary?.tx_hash,
+      tier: raw.payloadSummary?.tier ?? raw.payload_summary?.tier,
+      reason: raw.payloadSummary?.reason ?? raw.payload_summary?.reason,
+    },
+  }
+}
+
 // ── LiveAccessApi ─────────────────────────────────────────────────────────────
 
 export class LiveAccessApi implements AccessApi {
@@ -282,6 +296,16 @@ export class LiveAccessApi implements AccessApi {
   async listPolicies(): Promise<AccessPolicy[]> {
     const raw = await getJson<BackendPolicy[]>('/v1/policies')
     return raw.map(mapPolicy)
+  }
+
+  // ── Admin queries & mutations (require a valid SIWE token) ─────────────────
+
+  async listWebhookEvents(): Promise<WebhookEventLog[]> {
+    const raw = await getJson<any[]>('/v1/admin/events', {
+      method: 'GET',
+      headers: this.authHeaders(),
+    })
+    return raw.map(mapWebhookEvent)
   }
 
   async assignRole(address: string, role: Role): Promise<void> {

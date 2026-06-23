@@ -28,6 +28,7 @@ import { WagmiProvider, createConfig, http, injected, useSignMessage, useAccount
 import { mainnet, base, sepolia } from 'wagmi/chains'
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query'
 import { getApi } from '@/lib/api'
+import { config } from '@/lib/config'
 import { SiweAuthSession } from '@/lib/api/types'
 import { clearAuthSession, loadAuthSession, storeAuthSession } from '@/lib/session'
 import { accessKeys } from '@/lib/query'
@@ -117,11 +118,8 @@ function SiweAuthProvider({ children }: PropsWithChildren) {
       const nonce = await api.getNonce(address)
 
       // Build EIP-4361 message — compatible with the `siwe` package's format
-      const domain =
-        process.env.NEXT_PUBLIC_SIWE_DOMAIN ??
-        (typeof window !== 'undefined' ? window.location.host : 'localhost')
-      const statement =
-        process.env.NEXT_PUBLIC_SIWE_STATEMENT ?? 'Sign in to GuildPass Admin'
+      const domain = config.siwe.domain
+      const statement = config.siwe.statement
       const issuedAt = new Date().toISOString()
       const chainId = chain?.id ?? 1
 
