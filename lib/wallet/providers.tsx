@@ -26,10 +26,10 @@ import {
 } from 'react'
 import { WagmiProvider, createConfig, http, injected, useSignMessage, useAccount, useDisconnect } from 'wagmi'
 import { mainnet, base, sepolia } from 'wagmi/chains'
-import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query'
+import { QueryClient, QueryClientProvider, useQueryClient, QueryCache } from '@tanstack/react-query'
 import { getApi } from '@/lib/api'
 import { config } from '@/lib/config'
-import { SiweAuthSession } from '@/lib/api/types'
+import { SiweAuthSession, AdminSessionStatus } from '@/lib/api/types'
 import { clearAuthSession, loadAuthSession, storeAuthSession } from '@/lib/session'
 import { isApiError } from '@/lib/api/errors'
 import { accessKeys } from '@/lib/query'
@@ -244,24 +244,22 @@ function SiweAuthProvider({ children }: PropsWithChildren) {
 export function RootProviders({ children }: PropsWithChildren) {
   const [queryClient] = useState(() =>
     new QueryClient({
-      defaultOptions: {
-        queries: {
-          onError: (err: unknown) => {
-            try {
-              if (isApiError(err) && err.code === 'unauthorized') {
-                // Clear persisted session and cached queries on 401 so UI resets
-                clearAuthSession()
-                // best-effort: remove session-related cache
-                // Note: QueryClient instance is available as `queryClient` here,
-                // but removing queries from within the constructor callback is
-                // not supported — we'll remove them after creation below.
-              }
-            } catch {
-              // ignore
+      queryCache: new QueryCache({
+        onError: (err: unknown) => {
+          try {
+            if (isApiError(err) && err.code === 'unauthorized') {
+              // Clear persisted session and cached queries on 401 so UI resets
+              clearAuthSession()
+              // best-effort: remove session-related cache
+              // Note: QueryClient instance is available as `queryClient` here,
+              // but removing queries from within the constructor callback is
+              // not supported — we'll remove them after creation below.
             }
-          },
+          } catch {
+            // ignore
+          }
         },
-      },
+      }),
     }),
   )
 

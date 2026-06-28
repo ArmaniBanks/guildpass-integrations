@@ -81,7 +81,7 @@ describe('membership lookup', () => {
   })
 
   test('LiveAccessApi returns a valid Membership', async () => {
-    stubFetch({ '/v1/members/0xabc/membership': FIXTURES.membership })
+    stubFetch({ '/api/integration/membership': FIXTURES.membership })
     const api = new LiveAccessApi()
     const m = await api.getMembership('0xabc')
 
@@ -94,7 +94,7 @@ describe('membership lookup', () => {
   test('both APIs produce the same Membership view model', async () => {
     const mockResult = await new MockAccessApi().getMembership('0xabc')
 
-    stubFetch({ '/v1/members/0xabc/membership': FIXTURES.membership })
+    stubFetch({ '/api/integration/membership': FIXTURES.membership })
     const liveResult = await new LiveAccessApi().getMembership('0xabc')
 
     assert.deepStrictEqual(normalize(mockResult), normalize(liveResult))
@@ -173,6 +173,41 @@ describe('resource listing', () => {
   })
 })
 
+// ── Resource lookup ───────────────────────────────────────────────────────────
+
+describe('resource lookup', () => {
+  test('MockAccessApi returns valid Resource or null', async () => {
+    const api = new MockAccessApi()
+    const r = await api.getResource('alpha')
+    assert.ok(r)
+    assert.equal(r.id, 'alpha')
+    assert.equal(r.title, 'Alpha Docs')
+
+    const nil = await api.getResource('non-existent')
+    assert.equal(nil, null)
+  })
+
+  test('LiveAccessApi returns valid Resource or null', async () => {
+    stubFetch({ '/v1/resources': FIXTURES.resources })
+    const api = new LiveAccessApi()
+    const r = await api.getResource('alpha')
+    assert.ok(r)
+    assert.equal(r.id, 'alpha')
+
+    const nil = await api.getResource('non-existent')
+    assert.equal(nil, null)
+  })
+
+  test('both APIs produce identical Resource lookup results', async () => {
+    const mockResult = await new MockAccessApi().getResource('alpha')
+
+    stubFetch({ '/v1/resources': FIXTURES.resources })
+    const liveResult = await new LiveAccessApi().getResource('alpha')
+
+    assert.deepStrictEqual(normalize(mockResult), normalize(liveResult))
+  })
+})
+
 // ── Policy listing ────────────────────────────────────────────────────────────
 
 describe('policy listing', () => {
@@ -206,6 +241,40 @@ describe('policy listing', () => {
 
     stubFetch({ '/v1/policies': FIXTURES.policies })
     const liveResult = await new LiveAccessApi().listPolicies()
+
+    assert.deepStrictEqual(normalize(mockResult), normalize(liveResult))
+  })
+})
+
+// ── Policy lookup ─────────────────────────────────────────────────────────────
+
+describe('policy lookup', () => {
+  test('MockAccessApi returns valid AccessPolicy or null', async () => {
+    const api = new MockAccessApi()
+    const p = await api.getPolicy('alpha')
+    assert.ok(p)
+    assert.equal(p.resourceId, 'alpha')
+
+    const nil = await api.getPolicy('non-existent')
+    assert.equal(nil, null)
+  })
+
+  test('LiveAccessApi returns valid AccessPolicy or null', async () => {
+    stubFetch({ '/v1/policies': FIXTURES.policies })
+    const api = new LiveAccessApi()
+    const p = await api.getPolicy('alpha')
+    assert.ok(p)
+    assert.equal(p.resourceId, 'alpha')
+
+    const nil = await api.getPolicy('non-existent')
+    assert.equal(nil, null)
+  })
+
+  test('both APIs produce identical AccessPolicy lookup results', async () => {
+    const mockResult = await new MockAccessApi().getPolicy('alpha')
+
+    stubFetch({ '/v1/policies': FIXTURES.policies })
+    const liveResult = await new LiveAccessApi().getPolicy('alpha')
 
     assert.deepStrictEqual(normalize(mockResult), normalize(liveResult))
   })

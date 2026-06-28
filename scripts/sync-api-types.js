@@ -5,7 +5,76 @@ const SCHEMA_PATH = path.join(__dirname, '../test/fixtures/openapi.json');
 const TARGET_PATH = path.join(__dirname, '../lib/api/types.ts');
 
 const STATIC_SUFFIX = `
+export type WebhookEventStatus = 'success' | 'failed' | 'pending';
+
+export type WebhookEventType = 
+  | 'membership.created' 
+  | 'membership.renewed' 
+  | 'membership.expired' 
+  | 'tier.upgraded' 
+  | 'policy.updated';
+
+export interface WebhookEventLog {
+  id: string;
+  eventType: WebhookEventType;
+  status: WebhookEventStatus;
+  timestamp: string;
+  affectedIdentifier: string; // Wallet address or Resource ID
+  payloadSummary: {
+    network?: string;
+    txHash?: string;
+    tier?: string;
+    reason?: string;
+  };
+}
+
+export interface WalletVerification {
+  verified: boolean
+  method?: string
+  checkedAt: string
+}
+
+export interface ApiErrorBody {
+  code?: string
+  error?: string
+  message?: string
+  details?: Record<string, unknown>
+}
+
+// ── Access Decision (cached per wallet + resource) ───────────────────────────
+
+/**
+ * Result of an access check for a specific resource.
+ * This is the value stored in the route-level access cache.
+ * Only safe display metadata is included — never sensitive tokens.
+ */
+export interface AccessDecision {
+  /** Whether access is granted */
+  allowed: boolean
+  /** Human-readable reason for the decision (safe for display) */
+  reason: string
+  /** ISO timestamp of when the check was performed */
+  checkedAt: string
+}
+
 // ── Client-side State Types ──────────────────────────────────────────────────
+
+/**
+ * Distinct states of the admin authentication session.
+ *
+ * - disconnected   — no wallet connected
+ * - connected      — wallet connected, but SIWE sign-in not yet performed
+ * - authenticating — SIWE signing flow is in-flight
+ * - authenticated  — valid, non-expired session token is held
+ * - expired        — a session was held but the token has since expired (or
+ *                    the backend rejected it with 401); re-auth is required
+ */
+export type AdminSessionStatus =
+  | 'disconnected'
+  | 'connected'
+  | 'authenticating'
+  | 'authenticated'
+  | 'expired'
 
 /**
  * Union of authenticated / unauthenticated states for the SIWE context.
@@ -14,6 +83,60 @@ export type SiweAuthState =
   | SiweAuthSession
   | { isAuthenticated: false }
 
+// ── Backend raw types (guildpass-core response shapes) ───────────────────────
+// These are the shapes returned by /v1/* endpoints. The live API client maps
+// them into the frontend types above. Fields are optional because backend
+// versions may use snake_case or camelCase, and this mapping handles both.
+
+export interface BackendMember {
+  address?: string
+  wallet_address?: string
+  tier?: MembershipTier
+  membership_tier?: MembershipTier
+  active?: boolean
+  is_active?: boolean
+  expiresAt?: string
+  expires_at?: string
+  roles?: Role[]
+  // Profile fields (returned by /v1/members/:address/profile)
+  displayName?: string
+  display_name?: string
+  username?: string
+  bio?: string
+  badges?: string[]
+}
+
+export interface BackendResource {
+  id: string
+  title?: string
+  name?: string
+  description?: string
+  minTier?: MembershipTier
+  min_tier?: MembershipTier
+  roles?: Role[]
+}
+
+export interface BackendPolicy {
+  resourceId?: string
+  resource_id?: string
+  minTier?: MembershipTier
+  min_tier?: MembershipTier
+  roles?: Role[]
+}
+
+export interface BackendSession {
+  address?: string
+  wallet_address?: string
+  roles?: Role[]
+  membership?: Partial<BackendMember>
+  community?: {
+    id: string
+    name: string
+    description?: string
+    tiers?: MembershipTier[]
+  }
+}
+
 // ── API Interface ─────────────────────────────────────────────────────────────
 
 export interface AccessApi {
@@ -21,12 +144,16 @@ export interface AccessApi {
   getSession(): Promise<Session>
   getCommunity(): Promise<Community>
   getMembership(address: string): Promise<Membership | null>
+  verifyWallet(address: string): Promise<WalletVerification>
   getProfile(address: string): Promise<MemberProfile | null>
   listMembers(): Promise<MemberRow[]>
   listResources(): Promise<Resource[]>
   listPolicies(): Promise<AccessPolicy[]>
+  getResource(id: string): Promise<Resource | null>
+  getPolicy(resourceId: string): Promise<AccessPolicy | null>
 
-  // ── Admin mutations (require a valid SIWE token) ─────────────────────────
+  // ── Admin queries & mutations (require a valid SIWE token context) ────────
+  listWebhookEvents(): Promise<WebhookEventLog[]>
   assignRole(address: string, role: Role): Promise<void>
   updatePolicy(policy: AccessPolicy): Promise<void>
 

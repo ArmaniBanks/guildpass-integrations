@@ -36,8 +36,8 @@ async function createIntegrationClient() {
     )
   }
 
-  const module = (await import('@guildpass/integration-client')) as IntegrationClientModule
-  const Client = module.IntegrationClient ?? module.default
+  const clientModule = (await import('@guildpass/integration-client')) as IntegrationClientModule
+  const Client = clientModule.IntegrationClient ?? clientModule.default
 
   if (typeof Client !== 'function') {
     throw new Error(

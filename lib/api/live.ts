@@ -312,11 +312,11 @@ export class LiveAccessApi implements AccessApi {
 
     if (this.address) {
       try {
-        const integrationMembership = await getIntegrationJson<Membership | null>(
+        const integrationMembership = await getIntegrationJson<BackendMember | null>(
           `/api/integration/membership?address=${encodeURIComponent(this.address)}`,
         )
         if (integrationMembership) {
-          session.membership = integrationMembership
+          session.membership = mapMembership(integrationMembership)
         }
       } catch {
         // If the integration gateway is unavailable, retain the membership data
@@ -333,9 +333,10 @@ export class LiveAccessApi implements AccessApi {
   }
 
   async getMembership(address: string): Promise<Membership | null> {
-    return await getIntegrationJson<Membership | null>(
+    const raw = await getIntegrationJson<BackendMember | null>(
       `/api/integration/membership?address=${encodeURIComponent(address)}`,
     )
+    return raw ? mapMembership(raw) : null
   }
 
   async verifyWallet(address: string): Promise<WalletVerification> {
@@ -364,6 +365,16 @@ export class LiveAccessApi implements AccessApi {
   async listPolicies(): Promise<AccessPolicy[]> {
     const raw = await getJson<BackendPolicy[]>('/v1/policies')
     return raw.map(mapPolicy)
+  }
+
+  async getResource(id: string): Promise<Resource | null> {
+    const list = await this.listResources()
+    return list.find((r) => r.id === id) ?? null
+  }
+
+  async getPolicy(resourceId: string): Promise<AccessPolicy | null> {
+    const list = await this.listPolicies()
+    return list.find((p) => p.resourceId === resourceId) ?? null
   }
 
   // ── Admin queries & mutations (require a valid SIWE token) ─────────────────
