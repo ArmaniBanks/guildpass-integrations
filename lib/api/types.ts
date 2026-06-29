@@ -199,7 +199,11 @@ export interface BackendSession {
 
 // ── API Interface ─────────────────────────────────────────────────────────────
 
-export interface AccessApi {
+/**
+ * Read-only member and resource queries.
+ * No SIWE token is required for these operations.
+ */
+export interface MemberAccessApi {
   // ── Read-only (no auth token required) ──────────────────────────────────
   getSession(): Promise<Session>
   getCommunity(): Promise<Community>
@@ -211,14 +215,24 @@ export interface AccessApi {
   listPolicies(): Promise<AccessPolicy[]>
   getResource(id: string): Promise<Resource | null>
   getPolicy(resourceId: string): Promise<AccessPolicy | null>
+}
 
+/**
+ * Authenticated admin queries and mutations.
+ * These methods require a valid SIWE token context.
+ */
+export interface AdminAccessApi {
   // ── Admin queries & mutations (require a valid SIWE token context) ────────
   listWebhookEvents(): Promise<WebhookEventLog[]>
   assignRole(address: string, role: Role): Promise<void>
   removeRole(address: string, role: Role): Promise<void>
-  verifyWallet(address: string): Promise<WalletVerification>
   updatePolicy(policy: AccessPolicy): Promise<void>
+}
 
+/**
+ * SIWE authentication endpoints.
+ */
+export interface SiweAuthApi {
   // ── SIWE authentication endpoints ────────────────────────────────────────
   /** Fetch a one-time nonce for the given address to include in the SIWE message. */
   getNonce(address: string): Promise<string>
@@ -230,3 +244,12 @@ export interface AccessApi {
   /** Invalidate the current server-side session (no-op for stateless JWTs). */
   siweLogout(token: string): Promise<void>
 }
+
+/**
+ * Composed client-side API contract.
+ *
+ * Built from {@link MemberAccessApi}, {@link AdminAccessApi}, and
+ * {@link SiweAuthApi} so each surface has a single, unambiguous responsibility
+ * and implementations cannot drift between duplicated declarations.
+ */
+export type AccessApi = MemberAccessApi & AdminAccessApi & SiweAuthApi

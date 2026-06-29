@@ -3,7 +3,7 @@ import * as assert from 'node:assert/strict'
 import { MockAccessApi } from '../lib/api/mock'
 import { LiveAccessApi } from '../lib/api/live'
 import { computeAccessDecision } from '../lib/api/access-decision'
-import type { MembershipTier, Session } from '../lib/api/types'
+import type { AccessApi, MembershipTier, Session } from '../lib/api/types'
 import * as FIXTURES from './fixtures/live-api-responses'
 
 function normalize<T>(obj: T): T {
@@ -470,5 +470,25 @@ describe('SIWE endpoints', () => {
     stubFetch({ '/v1/auth/siwe/logout': null })
     const api = new LiveAccessApi()
     await assert.doesNotReject(() => api.siweLogout('token'))
+  })
+})
+
+// ── Interface compatibility (compile-time) ───────────────────────────────────
+
+describe('AccessApi interface compatibility', () => {
+  test('MockAccessApi statically satisfies AccessApi', () => {
+    const api: AccessApi = new MockAccessApi()
+    assert.ok(api)
+    assert.equal(typeof api.verifyWallet, 'function')
+    assert.equal(typeof api.assignRole, 'function')
+    assert.equal(typeof api.siweVerify, 'function')
+  })
+
+  test('LiveAccessApi statically satisfies AccessApi', () => {
+    const api: AccessApi = new LiveAccessApi()
+    assert.ok(api)
+    assert.equal(typeof api.verifyWallet, 'function')
+    assert.equal(typeof api.assignRole, 'function')
+    assert.equal(typeof api.siweVerify, 'function')
   })
 })
