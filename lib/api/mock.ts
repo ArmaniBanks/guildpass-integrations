@@ -36,7 +36,6 @@ import {
   SiweAuthSession,
   WalletVerification,
   WebhookEventLog,
-  WalletVerification,
 } from './types'
 import { ApiError } from './errors'
 
