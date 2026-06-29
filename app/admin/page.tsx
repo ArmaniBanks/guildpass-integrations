@@ -1,36 +1,32 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { WebhookEventLog, WebhookEventStatus, WebhookEventType } from '@/lib/api/types'
 import { MockAccessApi } from '@/lib/api/mock' // Swappable depending on context instantiation
+import { queryKeys } from '@/lib/query'
 import { EmptyState } from "@/components/ui/api-states"
 import { AddressText } from '@/components/wallet/address-text'
 
 export default function AdminEventsPage() {
-  const [events, setEvents] = useState<WebhookEventLog[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  
+  const {
+    data: events = [],
+    isLoading: loading,
+    isError,
+    error: queryError,
+  } = useQuery({
+    queryKey: queryKeys.webhookEvents.all,
+    queryFn: async () => {
+      const api = new MockAccessApi()
+      return api.listWebhookEvents()
+    },
+  })
+
+  const error = isError ? (queryError as Error).message || "Failed to load webhook events feed." : null
+
   // Filtering States
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [typeFilter, setTypeFilter] = useState<string>('all')
-
-  useEffect(() => {
-    // Replace with standard global useApi() or contextual resolution if passing session tokens
-    const api = new MockAccessApi()
-    
-    api.listWebhookEvents()
-      .then((data) => {
-        setEvents(data)
-        setError(null)
-      })
-      .catch((err) => {
-        setError(err.message || "Failed to load webhook events feed.")
-      })
-      .finally(() => {
-        setLoading(false)
-      })
-  }, [])
 
   const filteredEvents = events.filter((evt) => {
     const matchStatus = statusFilter === 'all' || evt.status === statusFilter

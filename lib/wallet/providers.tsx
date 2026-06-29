@@ -32,7 +32,7 @@ import { config } from '@/lib/config'
 import { SiweAuthSession, AdminSessionStatus } from '@/lib/api/types'
 import { clearAuthSession, loadAuthSession, storeAuthSession } from '@/lib/session'
 import { isApiError } from '@/lib/api/errors'
-import { accessKeys } from '@/lib/query'
+import { accessKeys, queryKeys } from '@/lib/query'
 
 // ── Wagmi config (unchanged) ──────────────────────────────────────────────────
 
@@ -131,7 +131,7 @@ function SiweAuthProvider({ children }: PropsWithChildren) {
       } catch {
         // ignore
       }
-      queryClient.removeQueries({ queryKey: ['session'] })
+      queryClient.removeQueries({ queryKey: queryKeys.session.all })
       queryClient.removeQueries({ queryKey: accessKeys.all })
     }
 
@@ -176,7 +176,7 @@ function SiweAuthProvider({ children }: PropsWithChildren) {
       setAuthSession(session)
       setIsExpired(false)
       // Invalidate session queries so role-aware UI refreshes
-      await queryClient.invalidateQueries({ queryKey: ['session'] })
+      await queryClient.invalidateQueries({ queryKey: queryKeys.session.all })
     } catch (err: unknown) {
       if (err instanceof Error && err.name === 'UserRejectedRequestError') {
         setError('Signature request was rejected.')
@@ -203,7 +203,7 @@ function SiweAuthProvider({ children }: PropsWithChildren) {
     setIsExpired(false)
     setError(null)
     disconnect()
-    queryClient.removeQueries({ queryKey: ['session'] })
+    queryClient.removeQueries({ queryKey: queryKeys.session.all })
     queryClient.removeQueries({ queryKey: accessKeys.all })
   }, [authSession, address, disconnect, queryClient])
 
@@ -267,7 +267,7 @@ export function RootProviders({ children }: PropsWithChildren) {
   // when we detect an unauthorized error via the onError hook above.
   useEffect(() => {
     const handler = () => {
-      queryClient.removeQueries({ queryKey: ['session'] })
+      queryClient.removeQueries({ queryKey: queryKeys.session.all })
       queryClient.removeQueries({ queryKey: accessKeys.all })
     }
     window.addEventListener('siwe:invalidated', handler)

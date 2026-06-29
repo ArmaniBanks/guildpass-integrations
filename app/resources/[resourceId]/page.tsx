@@ -4,6 +4,7 @@ import { useParams } from "next/navigation"
 import { useAccount } from "wagmi"
 import { useQuery } from "@tanstack/react-query"
 import { getApi } from "@/lib/api"
+import { queryKeys } from "@/lib/query"
 import { Gated } from "@/components/gated"
 import { FeatureGate } from "@/components/feature-gate"
 import { EmptyState, LoadingState, ErrorState, safeErrorMessage } from "@/components/ui/api-states"
@@ -14,14 +15,14 @@ export default function DynamicResourceDocs() {
   const { address } = useAccount()
 
   const { data: resource, isLoading: resourceLoading, isError, error, refetch } = useQuery({
-    queryKey: ["resource", resourceId],
+    queryKey: queryKeys.resources.detail(resourceId),
     queryFn: () => getApi(address).getResource(resourceId),
     enabled: !!resourceId,
     retry: 1,
   })
 
   const { data: policy, isLoading: policyLoading } = useQuery({
-    queryKey: ["policy", resourceId],
+    queryKey: queryKeys.policies.byResource(resourceId),
     queryFn: () => getApi(address).getPolicy(resourceId),
     enabled: !!resourceId,
     retry: 1,

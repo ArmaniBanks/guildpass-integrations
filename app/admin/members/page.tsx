@@ -11,6 +11,7 @@ import { useState } from 'react'
 import { AdminGuard } from '@/components/admin-guard'
 import { useSiweAuth } from '@/lib/wallet/providers'
 import { AuthError } from '@/lib/api/live'
+import { queryKeys } from '@/lib/query'
 import { LoadingState, ErrorState, EmptyState, DeniedState, safeErrorMessage } from '@/components/ui/api-states'
 import { applyOptimisticRole } from '@/lib/api/optimistic'
 import { AddressText } from '@/components/wallet/address-text'
@@ -55,7 +56,7 @@ export default function MembersPage() {
   const [sessionExpired, setSessionExpired] = useState(false)
 
   const { data: members, isLoading, isError, error, refetch } = useQuery<MemberRow[]>({
-    queryKey: ['members'],
+    queryKey: queryKeys.members.all,
     queryFn: () => getApi(address).listMembers(),
     retry: 1
   })
@@ -76,15 +77,15 @@ export default function MembersPage() {
     mutationFn: (input) =>
       getApi(address, authSession?.token).assignRole(input.address, input.role),
     onMutate: async (input) => {
-      await qc.cancelQueries({ queryKey: ['members'] })
-      const previousMembers = qc.getQueryData<MemberRow[]>(['members'])
+      await qc.cancelQueries({ queryKey: queryKeys.members.all })
+      const previousMembers = qc.getQueryData<MemberRow[]>(queryKeys.members.all)
 
       setPendingAssignment(input)
       setSuccessAssignment(null)
       setRollbackMessage('')
       setSessionExpired(false)
 
-      qc.setQueryData<MemberRow[]>(['members'], (currentMembers) =>
+      qc.setQueryData<MemberRow[]>(queryKeys.members.all, (currentMembers) =>
         applyOptimisticRole(currentMembers, input.address, input.role),
       )
 
@@ -96,7 +97,7 @@ export default function MembersPage() {
       resetMutation()
     },
     onError: (err: unknown, _input, context) => {
-      qc.setQueryData(['members'], context?.previousMembers)
+      qc.setQueryData(queryKeys.members.all, context?.previousMembers)
       setRollbackMessage(`Change reverted: ${safeErrorMessage(err)}`)
       if (err instanceof AuthError) {
         setSessionExpired(true)
@@ -105,7 +106,7 @@ export default function MembersPage() {
     },
     onSettled: () => {
       setPendingAssignment(null)
-      qc.invalidateQueries({ queryKey: ['members'] })
+      qc.invalidateQueries({ queryKey: queryKeys.members.all })
     },
   })
 
@@ -118,13 +119,13 @@ export default function MembersPage() {
     mutationFn: (input) =>
       getApi(address, authSession?.token).removeRole(input.address, input.role),
     onMutate: async (input) => {
-      await qc.cancelQueries({ queryKey: ['members'] })
-      const previousMembers = qc.getQueryData<MemberRow[]>(['members'])
+      await qc.cancelQueries({ queryKey: queryKeys.members.all })
+      const previousMembers = qc.getQueryData<MemberRow[]>(queryKeys.members.all)
       setPendingAssignment(input)
       setSuccessMessage('')
       setRollbackMessage('')
       setSessionExpired(false)
-      qc.setQueryData<MemberRow[]>(['members'], (currentMembers) =>
+      qc.setQueryData<MemberRow[]>(queryKeys.members.all, (currentMembers) =>
         applyOptimisticRemoveRole(currentMembers, input.address, input.role),
       )
       return { previousMembers }
@@ -134,7 +135,7 @@ export default function MembersPage() {
       resetMutation()
     },
     onError: (err: unknown, _input, context) => {
-      qc.setQueryData(['members'], context?.previousMembers)
+      qc.setQueryData(queryKeys.members.all, context?.previousMembers)
       setRollbackMessage(`Change reverted: ${safeErrorMessage(err)}`)
       if (err instanceof AuthError) {
         setSessionExpired(true)
@@ -143,7 +144,7 @@ export default function MembersPage() {
     },
     onSettled: () => {
       setPendingAssignment(null)
-      qc.invalidateQueries({ queryKey: ['members'] })
+      qc.invalidateQueries({ queryKey: queryKeys.members.all })
     },
   })
 

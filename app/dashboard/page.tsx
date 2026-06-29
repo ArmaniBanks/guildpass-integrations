@@ -2,6 +2,7 @@
 import { useAccount } from 'wagmi'
 import { useQuery } from '@tanstack/react-query'
 import { getApi, type MemberProfile, type Membership, type Session, type WalletVerification } from '@/lib/api'
+import { queryKeys } from '@/lib/query'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import Link from 'next/link'
@@ -23,7 +24,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 export default function DashboardPage() {
   const { address, isConnected } = useAccount()
   const { data: session, isLoading, isError, error, refetch } = useQuery<Session>({
-    queryKey: ["session", address],
+    queryKey: queryKeys.session.byAddress(address ?? ''),
     queryFn: () => getApi(address).getSession(),
     enabled: !!address,
     retry: 1,
@@ -36,7 +37,7 @@ export default function DashboardPage() {
     error: verifyError,
     refetch: refetchVerification,
   } = useQuery<WalletVerification>({
-    queryKey: ['walletVerification', address],
+    queryKey: queryKeys.walletVerification.byAddress(address ?? ''),
     queryFn: () => getApi(address).verifyWallet(address as string),
     enabled: !!address,
     retry: 1,
@@ -49,7 +50,7 @@ export default function DashboardPage() {
     error: profileError,
     refetch: refetchProfile,
   } = useQuery<MemberProfile | null>({
-    queryKey: ['profile', address],
+    queryKey: queryKeys.profile.byAddress(address ?? ''),
     queryFn: () => getApi(address).getProfile(address as string),
     enabled: !!address,
     retry: 1,

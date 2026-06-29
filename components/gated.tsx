@@ -6,6 +6,7 @@ import { getApi, type MembershipTier, type Role } from '@/lib/api'
 import { computeAccessDecision } from '@/lib/api/access-decision'
 import {
   accessKeys,
+  queryKeys,
   ACCESS_DECISION_STALE_TIME,
   ACCESS_DECISION_GC_TIME,
 } from '@/lib/query'
@@ -28,21 +29,21 @@ export function Gated({
   const env = String(chain?.id ?? 1)
 
   const { data: session, isLoading: sessionLoading, isError, error, refetch } = useQuery({
-    queryKey: ['session', address],
+    queryKey: queryKeys.session.byAddress(address ?? ''),
     queryFn: () => getApi(address).getSession(),
     enabled: !!address,
     retry: 1,
   })
 
   const { data: policies, isLoading: policiesLoading } = useQuery({
-    queryKey: ['policies'],
+    queryKey: queryKeys.policies.all,
     queryFn: () => getApi(address).listPolicies(),
     enabled: !!address && minTier === undefined && roles === undefined && !!resourceId,
     retry: 1,
   })
 
   const { data: resources, isLoading: resourcesLoading } = useQuery({
-    queryKey: ['resources'],
+    queryKey: queryKeys.resources.all,
     queryFn: () => getApi(address).listResources(),
     enabled: !!address && minTier === undefined && roles === undefined && !!resourceId,
     retry: 1,

@@ -9,6 +9,7 @@ import { FeatureGate } from '@/components/feature-gate'
 import { features } from '@/lib/features'
 import { applyOptimisticPolicy } from '@/lib/api/optimistic'
 import { AdminGuard } from '@/components/admin-guard'
+import { queryKeys } from '@/lib/query'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -75,7 +76,7 @@ export default function PoliciesPage() {
     error,
     refetch,
   } = useQuery<AccessPolicy[]>({
-    queryKey: ['policies'],
+    queryKey: queryKeys.policies.all,
     queryFn: () => getApi(address).listPolicies(),
     retry: 1,
   })
@@ -90,15 +91,15 @@ export default function PoliciesPage() {
       getApi(address, authSession?.token).updatePolicy(policy),
 
     onMutate: async (policy) => {
-      await qc.cancelQueries({ queryKey: ['policies'] })
-      const previousPolicies = qc.getQueryData<AccessPolicy[]>(['policies'])
+      await qc.cancelQueries({ queryKey: queryKeys.policies.all })
+      const previousPolicies = qc.getQueryData<AccessPolicy[]>(queryKeys.policies.all)
 
       setPendingPolicyId(policy.resourceId)
       setSuccessMessage('')
       setRollbackMessage('')
       setSessionExpired(false)
 
-      qc.setQueryData<AccessPolicy[]>(['policies'], (currentPolicies) =>
+      qc.setQueryData<AccessPolicy[]>(queryKeys.policies.all, (currentPolicies) =>
         applyOptimisticPolicy(currentPolicies, policy),
       )
 
@@ -115,7 +116,7 @@ export default function PoliciesPage() {
     },
 
     onError: (err: unknown, policy, context) => {
-      qc.setQueryData(['policies'], context?.previousPolicies)
+      qc.setQueryData(queryKeys.policies.all, context?.previousPolicies)
       setRollbackMessage(`Change reverted: ${safeErrorMessage(err)}`)
 
       if (err instanceof AuthError) {
@@ -136,7 +137,7 @@ export default function PoliciesPage() {
 
     onSettled: () => {
       setPendingPolicyId(null)
-      qc.invalidateQueries({ queryKey: ['policies'] })
+      qc.invalidateQueries({ queryKey: queryKeys.policies.all })
     },
   })
 
