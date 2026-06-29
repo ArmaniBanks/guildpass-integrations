@@ -1,8 +1,9 @@
 {
   "extends": "../tsconfig.json",
   "compilerOptions": {
+    "ignoreDeprecations": "6.0",
     "module": "CommonJS",
-    "moduleResolution": "Node",
+    "moduleResolution": "Node10",
     "noEmit": false,
     "outDir": "../test-dist",
     "rootDir": "..",
@@ -10,10 +11,14 @@
     "jsx": "react-jsx"
   },
   "include": [
+    "../lib/api/mappers.ts",
     "../lib/api/optimistic.ts",
     "../lib/api/types.ts",
     "../lib/api/access-decision.ts",
+    "../lib/wallet/address.ts",
+    "../components/wallet/address-text.tsx",
     "../lib/query/*.ts",
-    "./*.test.ts"
+    "./*.test.ts",
+    "./*.test.tsx"
   ]
 }

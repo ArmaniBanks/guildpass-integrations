@@ -3,6 +3,7 @@
 import { useAccount, useConnect, useDisconnect, injected } from 'wagmi'
 import { Button } from '@/components/ui/button'
 import { useSiweAuth } from '@/lib/wallet/providers'
+import { AddressText } from './address-text'
 
 export function ConnectButton() {
   const { isConnected, address } = useAccount()
@@ -23,12 +24,10 @@ export function ConnectButton() {
     )
   }
 
-  const short = `${address?.slice(0, 6)}…${address?.slice(-4)}`
-
   if (sessionStatus === 'authenticated') {
     return (
       <div className="flex items-center gap-2">
-        <span className="text-xs text-muted-foreground">{short}</span>
+        <AddressText address={address} className="text-xs text-muted-foreground" />
         <span
           id="siwe-authenticated-badge"
           className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
@@ -49,7 +48,7 @@ export function ConnectButton() {
     return (
       <div className="flex flex-col items-end gap-1">
         <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground">{short}</span>
+          <AddressText address={address} className="text-xs text-muted-foreground" />
           <span
             id="siwe-expired-badge"
             className="inline-flex items-center gap-1 rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
@@ -88,7 +87,7 @@ export function ConnectButton() {
   return (
     <div className="flex flex-col items-end gap-1">
       <div className="flex items-center gap-2">
-        <span className="text-xs text-muted-foreground">{short}</span>
+        <AddressText address={address} className="text-xs text-muted-foreground" />
         <Button
           id="wallet-signin-btn"
           size="sm"

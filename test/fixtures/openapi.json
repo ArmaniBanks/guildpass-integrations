@@ -5,8 +5,42 @@
     "description": "API contract for the GuildPass core access API, used to sync and validate frontend types.",
     "version": "1.0.0"
   },
-  "paths": {},
+  "paths": {
+    "/v1/admin/events": {
+      "get": {
+        "summary": "List webhook event logs",
+        "description": "Returns admin-only webhook event log entries with safe payload summary fields for operational monitoring.",
+        "operationId": "listWebhookEvents",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Webhook event log feed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/WebhookEventLog" }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid bearer token."
+          },
+          "403": {
+            "description": "Authenticated user is not allowed to view webhook events."
+          }
+        }
+      }
+    }
+  },
   "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    },
     "schemas": {
       "Role": {
         "type": "string",
@@ -15,6 +49,52 @@
       "MembershipTier": {
         "type": "string",
         "enum": ["free", "standard", "pro"]
+      },
+      "WebhookEventStatus": {
+        "type": "string",
+        "enum": ["success", "failed", "pending"]
+      },
+      "WebhookEventType": {
+        "type": "string",
+        "enum": [
+          "membership.created",
+          "membership.renewed",
+          "membership.expired",
+          "tier.upgraded",
+          "policy.updated"
+        ]
+      },
+      "WebhookPayloadSummary": {
+        "type": "object",
+        "description": "Safe, redacted webhook payload fields suitable for admin UI display.",
+        "properties": {
+          "network": { "type": "string" },
+          "txHash": { "type": "string" },
+          "tier": { "type": "string" },
+          "reason": { "type": "string" }
+        }
+      },
+      "WebhookEventLog": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "eventType": { "$ref": "#/components/schemas/WebhookEventType" },
+          "status": { "$ref": "#/components/schemas/WebhookEventStatus" },
+          "timestamp": { "type": "string", "format": "date-time" },
+          "affectedIdentifier": {
+            "type": "string",
+            "description": "Wallet address, resource id, or other safe identifier affected by the event."
+          },
+          "payloadSummary": { "$ref": "#/components/schemas/WebhookPayloadSummary" }
+        },
+        "required": [
+          "id",
+          "eventType",
+          "status",
+          "timestamp",
+          "affectedIdentifier",
+          "payloadSummary"
+        ]
       },
       "Community": {
         "type": "object",
@@ -104,6 +184,18 @@
         },
         "required": ["address", "roles", "tier", "active"]
       },
+      "ApiErrorBody": {
+        "type": "object",
+        "properties": {
+          "code": { "type": "string" },
+          "error": { "type": "string" },
+          "message": { "type": "string" },
+          "details": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      },
       "SiweAuthSession": {
         "type": "object",
         "properties": {
@@ -113,6 +205,15 @@
           "expiresAt": { "type": "string", "format": "date-time" }
         },
         "required": ["isAuthenticated", "token", "address", "expiresAt"]
+      },
+      "WalletVerification": {
+        "type": "object",
+        "properties": {
+          "verified": { "type": "boolean" },
+          "method": { "type": "string" },
+          "checkedAt": { "type": "string", "format": "date-time" }
+        },
+        "required": ["verified", "checkedAt"]
       }
     }
   }

@@ -26,13 +26,13 @@ import {
 } from 'react'
 import { WagmiProvider, createConfig, http, injected, useSignMessage, useAccount, useDisconnect } from 'wagmi'
 import { mainnet, base, sepolia } from 'wagmi/chains'
-import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query'
+import { QueryClient, QueryClientProvider, useQueryClient, QueryCache } from '@tanstack/react-query'
 import { getApi } from '@/lib/api'
 import { config } from '@/lib/config'
-import { SiweAuthSession } from '@/lib/api/types'
+import { SiweAuthSession, AdminSessionStatus } from '@/lib/api/types'
 import { clearAuthSession, loadAuthSession, storeAuthSession } from '@/lib/session'
 import { isApiError } from '@/lib/api/errors'
-import { accessKeys } from '@/lib/query'
+import { accessKeys, queryKeys } from '@/lib/query'
 
 // ── Wagmi config (unchanged) ──────────────────────────────────────────────────
 
@@ -131,7 +131,7 @@ function SiweAuthProvider({ children }: PropsWithChildren) {
       } catch {
         // ignore
       }
-      queryClient.removeQueries({ queryKey: ['session'] })
+      queryClient.removeQueries({ queryKey: queryKeys.session.all })
       queryClient.removeQueries({ queryKey: accessKeys.all })
     }
 
@@ -176,7 +176,7 @@ function SiweAuthProvider({ children }: PropsWithChildren) {
       setAuthSession(session)
       setIsExpired(false)
       // Invalidate session queries so role-aware UI refreshes
-      await queryClient.invalidateQueries({ queryKey: ['session'] })
+      await queryClient.invalidateQueries({ queryKey: queryKeys.session.all })
     } catch (err: unknown) {
       if (err instanceof Error && err.name === 'UserRejectedRequestError') {
         setError('Signature request was rejected.')
@@ -203,7 +203,7 @@ function SiweAuthProvider({ children }: PropsWithChildren) {
     setIsExpired(false)
     setError(null)
     disconnect()
-    queryClient.removeQueries({ queryKey: ['session'] })
+    queryClient.removeQueries({ queryKey: queryKeys.session.all })
     queryClient.removeQueries({ queryKey: accessKeys.all })
   }, [authSession, address, disconnect, queryClient])
 
@@ -244,24 +244,22 @@ function SiweAuthProvider({ children }: PropsWithChildren) {
 export function RootProviders({ children }: PropsWithChildren) {
   const [queryClient] = useState(() =>
     new QueryClient({
-      defaultOptions: {
-        queries: {
-          onError: (err: unknown) => {
-            try {
-              if (isApiError(err) && err.code === 'unauthorized') {
-                // Clear persisted session and cached queries on 401 so UI resets
-                clearAuthSession()
-                // best-effort: remove session-related cache
-                // Note: QueryClient instance is available as `queryClient` here,
-                // but removing queries from within the constructor callback is
-                // not supported — we'll remove them after creation below.
-              }
-            } catch {
-              // ignore
+      queryCache: new QueryCache({
+        onError: (err: unknown) => {
+          try {
+            if (isApiError(err) && err.code === 'unauthorized') {
+              // Clear persisted session and cached queries on 401 so UI resets
+              clearAuthSession()
+              // best-effort: remove session-related cache
+              // Note: QueryClient instance is available as `queryClient` here,
+              // but removing queries from within the constructor callback is
+              // not supported — we'll remove them after creation below.
             }
-          },
+          } catch {
+            // ignore
+          }
         },
-      },
+      }),
     }),
   )
 
@@ -269,7 +267,7 @@ export function RootProviders({ children }: PropsWithChildren) {
   // when we detect an unauthorized error via the onError hook above.
   useEffect(() => {
     const handler = () => {
-      queryClient.removeQueries({ queryKey: ['session'] })
+      queryClient.removeQueries({ queryKey: queryKeys.session.all })
       queryClient.removeQueries({ queryKey: accessKeys.all })
     }
     window.addEventListener('siwe:invalidated', handler)

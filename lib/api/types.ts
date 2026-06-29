@@ -9,26 +9,6 @@ export type Role = 'member' | 'moderator' | 'admin'
 
 export type MembershipTier = 'free' | 'standard' | 'pro'
 
-export type WebhookEventStatus = 'success' | 'failed' | 'pending'
-
-export type WebhookEventType = 'membership.created' | 'membership.renewed' | 'membership.expired' | 'tier.upgraded' | 'policy.updated'
-
-export interface WebhookPayloadSummary {
-  network?: string
-  txHash?: string
-  tier?: string
-  reason?: string
-}
-
-export interface WebhookEventLog {
-  id: string
-  eventType: WebhookEventType
-  status: WebhookEventStatus
-  timestamp: string
-  affectedIdentifier: string
-  payloadSummary: WebhookPayloadSummary
-}
-
 export interface Community {
   id: string
   name: string
@@ -78,18 +58,34 @@ export interface MemberRow {
   active: boolean
 }
 
-export interface ApiErrorBody {
-  code?: string
-  error?: string
-  message?: string
-  details?: Record<string, unknown>
-}
-
 export interface SiweAuthSession {
   isAuthenticated: true
   token: string
   address: string
   expiresAt: string
+}
+
+export type WebhookEventStatus = 'success' | 'failed' | 'pending';
+
+export type WebhookEventType = 
+  | 'membership.created' 
+  | 'membership.renewed' 
+  | 'membership.expired' 
+  | 'tier.upgraded' 
+  | 'policy.updated';
+
+export interface WebhookEventLog {
+  id: string;
+  eventType: WebhookEventType;
+  status: WebhookEventStatus;
+  timestamp: string;
+  affectedIdentifier: string; // Wallet address or Resource ID
+  payloadSummary: {
+    network?: string;
+    txHash?: string;
+    tier?: string;
+    reason?: string;
+  };
 }
 
 export interface WalletVerification {
@@ -98,7 +94,14 @@ export interface WalletVerification {
   checkedAt: string
 }
 
-// Access Decision (cached per wallet + resource)
+export interface ApiErrorBody {
+  code?: string
+  error?: string
+  message?: string
+  details?: Record<string, unknown>
+}
+
+// ── Access Decision (cached per wallet + resource) ───────────────────────────
 
 /**
  * Result of an access check for a specific resource.
@@ -196,22 +199,41 @@ export interface BackendSession {
 
 // API Interface
 
-export interface AccessApi {
-  // Read-only (no auth token required)
+/**
+ * Read-only member and resource queries.
+ * No SIWE token is required for these operations.
+ */
+export interface MemberAccessApi {
+  // ── Read-only (no auth token required) ──────────────────────────────────
   getSession(): Promise<Session>
   getCommunity(): Promise<Community>
   getMembership(address: string): Promise<Membership | null>
+  verifyWallet(address: string): Promise<WalletVerification>
   getProfile(address: string): Promise<MemberProfile | null>
   listMembers(): Promise<MemberRow[]>
   listResources(): Promise<Resource[]>
   listPolicies(): Promise<AccessPolicy[]>
+  getResource(id: string): Promise<Resource | null>
+  getPolicy(resourceId: string): Promise<AccessPolicy | null>
+}
 
-  // Admin queries & mutations (require a valid SIWE token context)
+/**
+ * Authenticated admin queries and mutations.
+ * These methods require a valid SIWE token context.
+ */
+export interface AdminAccessApi {
+  // ── Admin queries & mutations (require a valid SIWE token context) ────────
   listWebhookEvents(): Promise<WebhookEventLog[]>
   assignRole(address: string, role: Role): Promise<void>
+  removeRole(address: string, role: Role): Promise<void>
   updatePolicy(policy: AccessPolicy): Promise<void>
+}
 
-  // SIWE authentication endpoints
+/**
+ * SIWE authentication endpoints.
+ */
+export interface SiweAuthApi {
+  // ── SIWE authentication endpoints ────────────────────────────────────────
   /** Fetch a one-time nonce for the given address to include in the SIWE message. */
   getNonce(address: string): Promise<string>
   /**
@@ -223,3 +245,12 @@ export interface AccessApi {
   siweLogout(token: string): Promise<void>
   verifyWallet(address: string): Promise<WalletVerification>
 }
+
+/**
+ * Composed client-side API contract.
+ *
+ * Built from {@link MemberAccessApi}, {@link AdminAccessApi}, and
+ * {@link SiweAuthApi} so each surface has a single, unambiguous responsibility
+ * and implementations cannot drift between duplicated declarations.
+ */
+export type AccessApi = MemberAccessApi & AdminAccessApi & SiweAuthApi

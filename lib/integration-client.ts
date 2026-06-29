@@ -28,19 +28,51 @@ function normalizeVerification(raw: any): WalletVerification {
   }
 }
 
+export class GatewayConfigurationError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'GatewayConfigurationError'
+  }
+}
+
+export class GatewayDependencyError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'GatewayDependencyError'
+  }
+}
+
+export class GatewayMethodError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'GatewayMethodError'
+  }
+}
+
 async function createIntegrationClient() {
   const apiKey = process.env.INTEGRATION_API_KEY
   if (!apiKey) {
-    throw new Error(
+    throw new GatewayConfigurationError(
       'INTEGRATION_API_KEY is required to initialize @guildpass/integration-client.',
     )
   }
 
-  const module = (await import('@guildpass/integration-client')) as IntegrationClientModule
-  const Client = module.IntegrationClient ?? module.default
+  let clientModule: IntegrationClientModule
+  try {
+    clientModule = (await import('@guildpass/integration-client')) as IntegrationClientModule
+  } catch (error: any) {
+    if (error.code === 'MODULE_NOT_FOUND') {
+      throw new GatewayDependencyError(
+        'Optional dependency @guildpass/integration-client is not installed.',
+      )
+    }
+    throw error
+  }
+
+  const Client = clientModule.IntegrationClient ?? clientModule.default
 
   if (typeof Client !== 'function') {
-    throw new Error(
+    throw new GatewayMethodError(
       'Unable to resolve IntegrationClient from @guildpass/integration-client.',
     )
   }
@@ -71,7 +103,7 @@ export async function fetchMembershipByWallet(address: string): Promise<Membersh
   const method = getMembershipMethod(client)
 
   if (typeof method !== 'function') {
-    throw new Error('IntegrationClient does not expose a wallet membership lookup method.')
+    throw new GatewayMethodError('IntegrationClient does not expose a wallet membership lookup method.')
   }
 
   const raw = await method.call(client, address)
@@ -83,7 +115,7 @@ export async function verifyWallet(address: string): Promise<WalletVerification>
   const method = getVerificationMethod(client)
 
   if (typeof method !== 'function') {
-    throw new Error('IntegrationClient does not expose a wallet verification method.')
+    throw new GatewayMethodError('IntegrationClient does not expose a wallet verification method.')
   }
 
   const raw = await method.call(client, address)

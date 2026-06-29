@@ -106,7 +106,7 @@ function ensureAddress(addr?: string) {
       profile: {
         address: addr,
         displayName: `User ${addr.slice(0, 6)}`,
-        badges: [],
+        badges: ['Early Member', 'Beta Tester'],
       },
     }
   }
@@ -186,6 +186,16 @@ export class MockAccessApi implements AccessApi {
     return policies.map((p) => ({ ...p, roles: p.roles ?? [] }))
   }
 
+  async getResource(id: string): Promise<Resource | null> {
+    const r = resources.find((x) => x.id === id)
+    return r ? { ...r, roles: r.roles ?? [] } : null
+  }
+
+  async getPolicy(resourceId: string): Promise<AccessPolicy | null> {
+    const p = policies.find((x) => x.resourceId === resourceId)
+    return p ? { ...p, roles: p.roles ?? [] } : null
+  }
+
   // ── Admin queries & mutations ──────────────────────────────────────────────
 
   async listWebhookEvents(): Promise<WebhookEventLog[]> {
@@ -197,6 +207,13 @@ export class MockAccessApi implements AccessApi {
     const data = ensureAddress(address)
     if (!data) return
     if (!data.roles.includes(role)) data.roles.push(role)
+  }
+
+  async removeRole(address: string, role: Role): Promise<void> {
+    if (MOCK_SESSION_STATE === 'expired') throwMockUnauthorized()
+    const data = memberStore[address]
+    if (!data) return
+    data.roles = data.roles.filter((r) => r !== role)
   }
 
   async updatePolicy(policy: AccessPolicy): Promise<void> {

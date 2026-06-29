@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/react-query'
 import { getApi } from '@/lib/api'
 import { AccessDenied } from './gated'
 import { useSiweAuth } from '@/lib/wallet/providers'
+import { queryKeys } from '@/lib/query'
 import { Button } from './ui/button'
 import { LoadingState, ErrorState, safeErrorMessage } from './ui/api-states'
 
@@ -123,7 +124,7 @@ export default function AdminGuard({ children }: { children: ReactNode }) {
   const { sessionStatus, authSession } = useSiweAuth()
 
   const { data: session, isLoading, isError, error, refetch } = useQuery({
-    queryKey: ['session', address],
+    queryKey: queryKeys.session.byAddress(address ?? ''),
     queryFn: () => getApi(address, authSession?.token).getSession(),
     enabled: !!address && sessionStatus === 'authenticated',
     retry: 1

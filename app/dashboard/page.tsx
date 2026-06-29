@@ -1,12 +1,14 @@
 'use client'
 import { useAccount } from 'wagmi'
 import { useQuery } from '@tanstack/react-query'
-import { getApi, type Membership, type Session, type WalletVerification } from '@/lib/api'
+import { getApi, type MemberProfile, type Membership, type Session, type WalletVerification } from '@/lib/api'
+import { queryKeys } from '@/lib/query'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import Link from 'next/link'
 import { buttonVariants } from '@/components/ui/button'
 import { LoadingState, ErrorState, EmptyState, DeniedState, safeErrorMessage } from '@/components/ui/api-states'
+import { AddressText } from '@/components/wallet/address-text'
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -22,7 +24,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 export default function DashboardPage() {
   const { address, isConnected } = useAccount()
   const { data: session, isLoading, isError, error, refetch } = useQuery<Session>({
-    queryKey: ["session", address],
+    queryKey: queryKeys.session.byAddress(address ?? ''),
     queryFn: () => getApi(address).getSession(),
     enabled: !!address,
     retry: 1,
@@ -35,8 +37,21 @@ export default function DashboardPage() {
     error: verifyError,
     refetch: refetchVerification,
   } = useQuery<WalletVerification>({
-    queryKey: ['walletVerification', address],
+    queryKey: queryKeys.walletVerification.byAddress(address ?? ''),
     queryFn: () => getApi(address).verifyWallet(address as string),
+    enabled: !!address,
+    retry: 1,
+  })
+
+  const {
+    data: profile,
+    isLoading: profileLoading,
+    isError: profileIsError,
+    error: profileError,
+    refetch: refetchProfile,
+  } = useQuery<MemberProfile | null>({
+    queryKey: queryKeys.profile.byAddress(address ?? ''),
+    queryFn: () => getApi(address).getProfile(address as string),
     enabled: !!address,
     retry: 1,
   })
@@ -53,7 +68,7 @@ export default function DashboardPage() {
         <div className="text-right">
           <div className="text-sm">
             {isConnected ? (
-              <span className="text-muted-foreground">{address}</span>
+              <AddressText address={address} className="text-muted-foreground" />
             ) : (
               <span className="text-muted-foreground">Wallet not connected</span>
             )}
@@ -133,18 +148,41 @@ export default function DashboardPage() {
         </Section>
 
         <Section title="Badges">
-          <div className="flex flex-wrap gap-2">
-            <Badge>Early Member</Badge>
-            <Badge variant="outline">Placeholder</Badge>
-          </div>
+          {!address ? (
+            <DeniedState
+              title="Wallet connection required"
+              message="Connect your wallet to view your badges."
+            />
+          ) : profileLoading ? (
+            <LoadingState />
+          ) : profileIsError ? (
+            <ErrorState
+              title="Failed to load badges"
+              message={safeErrorMessage(profileError)}
+              onRetry={() => refetchProfile()}
+            />
+          ) : profile && profile.badges.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {profile.badges.map((badge) => (
+                <Badge key={badge}>{badge}</Badge>
+              ))}
+            </div>
+          ) : (
+            <EmptyState
+              title="No badges yet"
+              message="Complete community milestones to earn badges."
+            />
+          )}
         </Section>
 
         <Section title="Gated Resources">
           <div className="space-y-2">
             <div className="text-sm">Explore resources based on your tier.</div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Link href="/resources/alpha" className={buttonVariants()}>Alpha Docs</Link>
-              <Link href="/events/demo" className={buttonVariants({ variant: 'outline' })}>Demo Event</Link>
+              <Link href="/resources/pro-reports" className={buttonVariants({ variant: 'outline' })}>Pro Reports</Link>
+              <Link href="/resources/mem-updates" className={buttonVariants({ variant: 'outline' })}>Member Updates</Link>
+              <Link href="/events/demo" className={buttonVariants({ variant: 'secondary' })}>Demo Event</Link>
             </div>
           </div>
         </Section>

@@ -8,6 +8,7 @@ import { useAccount } from 'wagmi'
 import { cn } from '@/lib/utils'
 import { ConnectButton } from './wallet/connect-button'
 import { useSiweAuth } from '@/lib/wallet/providers'
+import { queryKeys } from '@/lib/query'
 import { features } from '@/lib/features'
 
 export function Nav() {
@@ -16,7 +17,7 @@ export function Nav() {
   const { authSession } = useSiweAuth()
 
   const { data: session } = useQuery({
-    queryKey: ['session', address],
+    queryKey: queryKeys.session.byAddress(address ?? ''),
     queryFn: () => getApi(address, authSession?.token).getSession(),
     staleTime: 10_000,
     enabled: !!address,

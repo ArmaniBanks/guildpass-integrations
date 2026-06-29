@@ -202,7 +202,7 @@ All live requests are sent to `NEXT_PUBLIC_CORE_API_URL` (default `http://localh
 
 ### Local dashboard integration gateway
 
-When live mode is enabled, the dashboard uses server-side route handlers to access `@guildpass/integration-client` without exposing private credentials.
+When live mode is enabled, the dashboard uses server-side route handlers to access `@guildpass/integration-client` without exposing private credentials. This is an **optional** integration. To enable it, you must install the private `@guildpass/integration-client` package and set `INTEGRATION_API_KEY` in your `.env.local`. If the package or key is missing, the gateway will return safe 503 errors.
 
 | Method | Path | Description |
 |--------|------|-------------|

@@ -1,4 +1,5 @@
 export { accessKeys } from './access-keys'
+export { queryKeys } from './query-keys'
 export { retryOnApiError } from './retry'
 export {
   ACCESS_DECISION_STALE_TIME,

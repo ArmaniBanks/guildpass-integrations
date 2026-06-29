@@ -6,6 +6,7 @@ import { getApi, type MembershipTier, type Role } from '@/lib/api'
 import { computeAccessDecision } from '@/lib/api/access-decision'
 import {
   accessKeys,
+  queryKeys,
   ACCESS_DECISION_STALE_TIME,
   ACCESS_DECISION_GC_TIME,
 } from '@/lib/query'
@@ -28,28 +29,67 @@ export function Gated({
   const env = String(chain?.id ?? 1)
 
   const { data: session, isLoading: sessionLoading, isError, error, refetch } = useQuery({
-    queryKey: ['session', address],
+    queryKey: queryKeys.session.byAddress(address ?? ''),
     queryFn: () => getApi(address).getSession(),
     enabled: !!address,
     retry: 1,
   })
 
+  const { data: policies, isLoading: policiesLoading } = useQuery({
+    queryKey: queryKeys.policies.all,
+    queryFn: () => getApi(address).listPolicies(),
+    enabled: !!address && minTier === undefined && roles === undefined && !!resourceId,
+    retry: 1,
+  })
+
+  const { data: resources, isLoading: resourcesLoading } = useQuery({
+    queryKey: queryKeys.resources.all,
+    queryFn: () => getApi(address).listResources(),
+    enabled: !!address && minTier === undefined && roles === undefined && !!resourceId,
+    retry: 1,
+  })
+
+  const dynamicPolicy = useMemo(() => {
+    if (!policies || !resourceId) return undefined
+    return policies.find((p) => p.resourceId === resourceId)
+  }, [policies, resourceId])
+
+  const dynamicResource = useMemo(() => {
+    if (!resources || !resourceId) return undefined
+    return resources.find((r) => r.id === resourceId)
+  }, [resources, resourceId])
+
+  const effectiveMinTier = minTier !== undefined
+    ? minTier
+    : (dynamicPolicy?.minTier !== undefined ? dynamicPolicy.minTier : dynamicResource?.minTier)
+
+  const effectiveRoles = roles !== undefined
+    ? roles
+    : (dynamicPolicy?.roles !== undefined ? dynamicPolicy.roles : dynamicResource?.roles)
+
+  const requirementsLoaded =
+    minTier !== undefined ||
+    roles !== undefined ||
+    !resourceId ||
+    (policies !== undefined && resources !== undefined)
+
   const { data: cachedDecision, isLoading: decisionLoading } = useQuery({
     queryKey: accessKeys.decision(env, address ?? '', resourceId ?? ''),
-    queryFn: () => computeAccessDecision(session!, { minTier, roles }),
-    enabled: !!session && !!resourceId,
+    queryFn: () => computeAccessDecision(session!, { minTier: effectiveMinTier, roles: effectiveRoles }),
+    enabled: !!session && !!resourceId && requirementsLoaded,
     staleTime: ACCESS_DECISION_STALE_TIME,
     gcTime: ACCESS_DECISION_GC_TIME,
     retry: 1,
   })
 
   const fallbackDecision = useMemo(
-    () => session ? computeAccessDecision(session, { minTier, roles }) : undefined,
-    [session, minTier, roles]
+    () => session ? computeAccessDecision(session, { minTier: effectiveMinTier, roles: effectiveRoles }) : undefined,
+    [session, effectiveMinTier, effectiveRoles]
   )
 
   const decision = resourceId ? cachedDecision : fallbackDecision
-  const isLoading = resourceId ? (sessionLoading || decisionLoading) : sessionLoading
+  const isRequirementsLoading = !!resourceId && minTier === undefined && roles === undefined && (policiesLoading || resourcesLoading)
+  const isLoading = resourceId ? (sessionLoading || decisionLoading || isRequirementsLoading) : sessionLoading
 
   if (!address) {
     return <AccessDenied reason="Please connect your wallet to continue." />
